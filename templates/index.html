@@ -1,0 +1,30 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Arduino Piano</title>
+</head>
+
+<body>
+
+<h1>Arduino Piano</h1>
+
+<button onclick="play(1047)">C</button>
+<button onclick="play(1175)">D</button>
+<button onclick="play(1319)">E</button>
+<button onclick="play(1397)">F</button>
+<button onclick="play(1568)">G</button>
+
+<button onclick="stop()">STOP</button>
+
+<script>
+function play(frequency) {
+    fetch("/play/" + frequency);
+}
+
+function stop() {
+    fetch("/stop");
+}
+</script>
+
+</body>
+</html>
