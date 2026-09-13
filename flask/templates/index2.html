@@ -1,0 +1,308 @@
+<!DOCTYPE html>
+
+<html lang="en">
+
+<head>
+
+    <meta charset="UTF-8">
+
+    <title>Turtle Viewer</title>
+
+    <style>
+
+        body {
+            font-family: sans-serif;
+            margin: 30px;
+        }
+
+        .files {
+            display: flex;
+            gap: 10px;
+            flex-wrap: wrap;
+        }
+
+        button {
+            padding: 10px 16px;
+            font-size: 16px;
+            cursor: pointer;
+        }
+
+        .loading {
+            width: 600px;
+            height: 400px;
+
+            display: flex;
+            align-items: center;
+            justify-content: center;
+
+            font-size: 20px;
+        }
+
+        .dots::after {
+            content: "";
+            animation: dots 1.5s steps(4, end) infinite;
+        }
+
+        @keyframes dots {
+            0%   { content: ""; }
+            25%  { content: "."; }
+            50%  { content: ".."; }
+            75%  { content: "..."; }
+            100% { content: ""; }
+        }
+
+        .error {
+            width: 600px;
+            height: 400px;
+
+            display: flex;
+            align-items: center;
+            justify-content: center;
+
+            color: red;
+        }
+
+    </style>
+
+</head>
+
+
+<body>
+
+    <h1>🐢 Turtle Viewer</h1>
+
+    <h2>Python files</h2>
+
+    <div class="files">
+
+        {% for file in files %}
+
+            <button onclick="showTurtle('{{ file.name }}')">
+                {{ file.name }}
+            </button>
+
+        {% else %}
+
+            <p>No Python files found.</p>
+
+        {% endfor %}
+
+    </div>
+    <div class="container">
+
+        <div>
+            <!-- <textarea id="code">forward(100)</textarea> -->
+
+            <!-- <button onclick="runCode()">Run</button> -->
+
+            <p id="error"></p>
+        </div>
+
+    </div>
+	<div class="viewer">
+
+            <h2 id="filename">Select a file</h2>
+
+            <!-- <img
+                id="canvas"
+                width="600"
+                height="400"
+                alt="Turtle drawing"> -->
+            <div id="canvas-container">
+                <p>???</p>
+            </div>
+
+            <canvas
+                id="canvas"
+                width="600"
+                height="400">
+            </canvas>
+        </div>
+	<script>
+        const canvas = document.getElementById("canvas");
+        const ctx = canvas.getContext("2d");
+
+        // Starting Turtle position
+        let turtle = {
+            x: canvas.width / 2,
+            y: canvas.height / 2
+        };
+
+        // Draw the Turtle's movement
+        function forward(distance) {
+
+            const oldX = turtle.x;
+            const oldY = turtle.y;
+
+            // For now Turtle faces right
+            turtle.x += distance;
+
+            ctx.beginPath();
+
+            ctx.moveTo(oldX, oldY);
+            ctx.lineTo(turtle.x, turtle.y);
+
+            ctx.stroke();
+        }
+
+		function showTurtle(filename){
+            console.log("showTurtle:", filename);
+
+			document.getElementById("filename").textContent = filename;
+			const image = document.getElementById("canvas");
+
+            // Loading animation
+            const container =
+                document.getElementById("canvas-container");
+            container.innerHTML = `
+                <div class="loading">
+                    Rendering<span class="dots"></span>
+                </div>
+            `;
+
+            const url =
+                "/turtle/render/" +
+                encodeURIComponent(filename) +
+                "?" +
+                Date.now();
+            console.log("loading:", url)
+
+            fetch(url)
+            .then(response => {
+                console.log("FETCH STATUS:", response.status);
+                console.log("CONTENT TYPE:", response.headers.get("content-type"));
+
+                if (!response.ok) {
+                    throw new Error("HTTP " + response.status);
+
+                    // return response.blob();
+                }
+
+                return response.blob();
+            })
+            .then(blob => {
+                // console.log("BLOB:", blob);
+
+                // image.src = URL.createObjectURL(blob);
+
+                console.log("BLOB:", blob);
+
+                const image = document.createElement("img");
+
+                image.width = 600;
+                image.height = 400;
+                image.alt = "Turtle drawing";
+
+                image.onload = function () {
+                    console.log("IMAGE ELEMENT LOADED");
+                };
+
+                image.onerror = function () {
+                    console.log("IMAGE ELEMENT FAILED");
+                };
+
+                image.src = URL.createObjectURL(blob);
+
+
+                container.replaceChildren(image);
+                })
+            .catch(error => {
+                console.error("FETCH FAILED:", error);
+            });
+
+			image.src = url;
+
+            image.onload = function (){
+                console.log("IMAGE2 LOADED");
+            };
+
+            image.onerror = function () {
+                console.log("IMAGE2 FAILED");
+            };
+            console.log(image.src, 999);
+		}
+
+        async function runCode() {
+
+            console.log("1. Run button clicked");
+
+            const code = document.getElementById("code").value;
+
+            console.log("2. Code:", code);
+
+            try {
+
+                console.log("3. Sending request to Flask...");
+
+                const response = await fetch("/run", {
+
+                    method: "POST",
+
+                    headers: {
+                        "Content-Type": "application/json"
+                    },
+
+                    body: JSON.stringify({
+                        code: code
+                    })
+
+                });
+
+                console.log("4. Flask responded:", response.status);
+
+                const data = await response.json();
+
+                console.log("5. Flask data:", data);
+
+
+                if (!response.ok) {
+
+                    document.getElementById("error").textContent =
+                        data.error;
+
+                    return;
+                }
+
+
+                // Clear canvas
+                ctx.clearRect(
+                    0,
+                    0,
+                    canvas.width,
+                    canvas.height
+                );
+
+
+                // Reset Turtle
+                turtle.x = canvas.width / 2;
+                turtle.y = canvas.height / 2;
+
+
+                console.log("6. Drawing commands:", data.commands);
+
+
+                for (const command of data.commands) {
+
+                    const name = command[0];
+                    const value = command[1];
+
+                    console.log("Executing:", name, value);
+
+                    if (name === "forward") {
+                        forward(value);
+                    }
+                }
+
+            } catch (error) {
+
+                console.error("ERROR:", error);
+
+                document.getElementById("error").textContent =
+                    error.toString();
+            }
+        }
+	</script>
+
+</body>
+
+</html>

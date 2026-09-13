@@ -1,0 +1,5 @@
+#!/bin/bash
+
+for file in /d/Works/pi/0/*.py; do
+	python /d/Works/pi/py/pillow.py "$file"
+done

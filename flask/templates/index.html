@@ -1,0 +1,176 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Python Turtle</title>
+
+    <style>
+        body {
+            font-family: sans-serif;
+            margin: 30px;
+        }
+
+        textarea {
+            width: 400px;
+            height: 200px;
+            font-family: monospace;
+            font-size: 16px;
+        }
+
+        canvas {
+            border: 1px solid black;
+            margin-left: 30px;
+        }
+
+        .container {
+            display: flex;
+            align-items: flex-start;
+        }
+
+        button {
+            display: block;
+            margin-top: 10px;
+            padding: 8px 20px;
+        }
+    </style>
+</head>
+
+<body>
+
+<h1>🐢 Python Turtle</h1>
+
+<div class="container">
+
+    <div>
+        <textarea id="code">forward(100)</textarea>
+
+        <button onclick="runCode()">Run</button>
+
+        <p id="error"></p>
+    </div>
+
+    <canvas
+        id="canvas"
+        width="600"
+        height="400">
+    </canvas>
+
+</div>
+
+
+<script>
+
+const canvas = document.getElementById("canvas");
+const ctx = canvas.getContext("2d");
+
+
+// Starting Turtle position
+let turtle = {
+    x: canvas.width / 2,
+    y: canvas.height / 2
+};
+
+
+// Draw the Turtle's movement
+function forward(distance) {
+
+    const oldX = turtle.x;
+    const oldY = turtle.y;
+
+    // For now Turtle faces right
+    turtle.x += distance;
+
+    ctx.beginPath();
+
+    ctx.moveTo(oldX, oldY);
+    ctx.lineTo(turtle.x, turtle.y);
+
+    ctx.stroke();
+}
+
+
+// Run the student's code
+async function runCode() {
+
+    console.log("1. Run button clicked");
+
+    const code = document.getElementById("code").value;
+
+    console.log("2. Code:", code);
+
+    try {
+
+        console.log("3. Sending request to Flask...");
+
+        const response = await fetch("/run", {
+
+            method: "POST",
+
+            headers: {
+                "Content-Type": "application/json"
+            },
+
+            body: JSON.stringify({
+                code: code
+            })
+
+        });
+
+        console.log("4. Flask responded:", response.status);
+
+        const data = await response.json();
+
+        console.log("5. Flask data:", data);
+
+
+        if (!response.ok) {
+
+            document.getElementById("error").textContent =
+                data.error;
+
+            return;
+        }
+
+
+        // Clear canvas
+        ctx.clearRect(
+            0,
+            0,
+            canvas.width,
+            canvas.height
+        );
+
+
+        // Reset Turtle
+        turtle.x = canvas.width / 2;
+        turtle.y = canvas.height / 2;
+
+
+        console.log("6. Drawing commands:", data.commands);
+
+
+        for (const command of data.commands) {
+
+            const name = command[0];
+            const value = command[1];
+
+            console.log("Executing:", name, value);
+
+            if (name === "forward") {
+                forward(value);
+            }
+        }
+
+    } catch (error) {
+
+        console.error("ERROR:", error);
+
+        document.getElementById("error").textContent =
+            error.toString();
+    }
+}
+
+</script>
+
+</body>
+</html>
